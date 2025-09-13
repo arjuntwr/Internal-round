@@ -1,0 +1,39 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_28-44108458b153cdd98b14a8b28a8ab62994f32c74",
+  "solcVersion": "0.8.28",
+  "solcLongVersion": "0.8.28+commit.7893614a",
+  "userSourceNameMap": {
+    "contracts/SupplyChain.sol": "project/contracts/SupplyChain.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "cancun",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/SupplyChain.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract SupplyChain {\n    struct Transfer {\n        address from;\n        address to;\n        uint256 price;\n        uint256 timestamp;\n    }\n\n    struct Produce {\n        uint256 batchId;\n        string cropName;\n        uint256 quantity;\n        string harvestDate;\n        address farmer;\n        Transfer[] history;\n    }\n\n    mapping(uint256 => Produce) public produces;\n    uint256 public nextBatchId;\n\n    event ProduceAdded(uint256 batchId, string cropName, uint256 quantity, string harvestDate, address farmer);\n    event OwnershipTransferred(uint256 batchId, address from, address to, uint256 price);\n\n    function addProduce(\n        string memory _cropName,\n        uint256 _quantity,\n        string memory _harvestDate\n    ) public {\n        uint256 batchId = nextBatchId++;\n        Produce storage p = produces[batchId];\n        p.batchId = batchId;\n        p.cropName = _cropName;\n        p.quantity = _quantity;\n        p.harvestDate = _harvestDate;\n        p.farmer = msg.sender;\n\n        emit ProduceAdded(batchId, _cropName, _quantity, _harvestDate, msg.sender);\n    }\n\n    function transferOwnership(uint256 _batchId, address _to, uint256 _price) public {\n        Produce storage p = produces[_batchId];\n        require(p.farmer != address(0), \"Produce does not exist\");\n        \n        Transfer memory t = Transfer(msg.sender, _to, _price, block.timestamp);\n        p.history.push(t);\n\n        emit OwnershipTransferred(_batchId, msg.sender, _to, _price);\n    }\n\n    function getProduce(uint256 _batchId) public view returns (\n        string memory, uint256, string memory, address, Transfer[] memory\n    ) {\n        Produce storage p = produces[_batchId];\n        return (p.cropName, p.quantity, p.harvestDate, p.farmer, p.history);\n    }\n}\n\n"
+      }
+    }
+  }
+}
