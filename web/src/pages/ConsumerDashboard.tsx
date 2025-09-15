@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import SupplyChainTimeline from "@/components/SupplyChainTimeline";
 import { Search, ShoppingCart, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getProduce } from "@/lib/api";
 
 const ConsumerDashboard = () => {
   const [batchId, setBatchId] = useState("");
@@ -84,24 +85,13 @@ const ConsumerDashboard = () => {
     setIsLoading(true);
     setSearched(true);
 
-    // Integrate with blockchain backend
+    // Integrate with blockchain backend via API client
     try {
-      const response = await fetch(`http://localhost:3000/getProduce/${batchId}`);
-      
-      if (!response.ok) {
-        if (response.status === 404) {
-          setTimelineData([]);
-          toast({
-            title: "Batch Not Found",
-            description: `No records found for Batch #${batchId}. Please check the ID and try again.`,
-            variant: "destructive",
-          });
-          return;
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const idNum = Number(batchId);
+      if (!Number.isFinite(idNum) || idNum < 0) {
+        throw new Error("Invalid batch ID");
       }
-
-      const result = await response.json();
+      const result = await getProduce(idNum);
       
       // Transform backend data to timeline format
       const timelineData = [
@@ -144,6 +134,18 @@ const ConsumerDashboard = () => {
       setIsLoading(false);
     }
   };
+
+  // Auto-search when linked with QR deep link like /consumer?batchId=0
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("batchId");
+    if (id) {
+      setBatchId(id);
+      // trigger search without user interaction
+      handleSearch({ preventDefault: () => {} } as any);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">

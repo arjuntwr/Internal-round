@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowRightLeft, History, Loader2, Truck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { transferOwnership } from "@/lib/api";
 
 interface Transfer {
   id: string;
@@ -50,25 +51,25 @@ const DistributorDashboard = () => {
 
     setIsLoading(true);
 
-    // Integrate with blockchain backend
+    // Integrate with backend via API client
     try {
-      const response = await fetch('http://localhost:3000/transfer', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          batchId: parseInt(formData.batchId),
-          recipient: formData.recipient,
-          price: parseFloat(formData.price.replace('$', '')),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const batchIdNum = Number(formData.batchId);
+      const priceNum = Number(String(formData.price).replace(/[^0-9.]/g, ""));
+      if (!Number.isFinite(batchIdNum) || batchIdNum < 0) {
+        throw new Error("Invalid batch ID");
+      }
+      if (!/^0x[a-fA-F0-9]{40}$/.test(formData.recipient.trim())) {
+        throw new Error("Recipient must be a valid 0x address");
+      }
+      if (!Number.isFinite(priceNum) || priceNum < 0) {
+        throw new Error("Price must be a positive number");
       }
 
-      const result = await response.json();
+      await transferOwnership({
+        batchId: batchIdNum,
+        recipient: formData.recipient.trim(),
+        price: priceNum,
+      });
       
       const newTransfer: Transfer = {
         id: String(recentTransfers.length + 1),

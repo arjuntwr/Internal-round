@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import ProduceCard from "@/components/ProduceCard";
 import { Calendar, Plus, Wheat, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { addProduce } from "@/lib/api";
 
 const FarmerDashboard = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -19,6 +20,7 @@ const FarmerDashboard = () => {
     { batchId: "002", cropName: "Corn", quantity: "150kg", harvestDate: "Sept 12, 2025", status: "available" },
     { batchId: "003", cropName: "Rice", quantity: "200kg", harvestDate: "Sept 15, 2025", status: "transferred" },
   ]);
+  const [lastQrUrl, setLastQrUrl] = useState<string | null>(null);
   
   const { toast } = useToast();
 
@@ -43,26 +45,18 @@ const FarmerDashboard = () => {
 
     setIsLoading(true);
 
-    // Integrate with blockchain backend
+    // Integrate with blockchain backend via API client
     try {
-      const response = await fetch('http://localhost:3000/produce', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          cropName: formData.cropName,
-          quantity: parseInt(formData.quantity),
-          harvestDate: formData.harvestDate,
-        }),
+      const qty = Number(formData.quantity);
+      if (!Number.isFinite(qty) || qty < 0) {
+        throw new Error("Quantity must be a positive number");
+      }
+      const result = await addProduce({
+        cropName: formData.cropName,
+        quantity: qty,
+        harvestDate: formData.harvestDate,
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      
       const newBatch = {
         batchId: String(result.batchId || recentBatches.length + 1).padStart(3, "0"),
         cropName: formData.cropName,
@@ -73,6 +67,7 @@ const FarmerDashboard = () => {
       
       setRecentBatches(prev => [newBatch, ...prev]);
       setFormData({ cropName: "", quantity: "", harvestDate: "" });
+      setLastQrUrl(result.qrCodeUrl || null);
       
       toast({
         title: "Success! 🌾",
@@ -170,6 +165,19 @@ const FarmerDashboard = () => {
                   )}
                 </Button>
               </form>
+
+              {lastQrUrl && (
+                <div className="mt-6 p-4 border border-border rounded-lg bg-muted/50 space-y-3">
+                  <div className="text-sm font-medium">Batch QR Code</div>
+                  <div className="flex items-center gap-4">
+                    <img src={lastQrUrl} alt="Batch QR" className="h-32 w-32" />
+                    <div className="space-y-2">
+                      <a href={lastQrUrl} target="_blank" rel="noreferrer" className="text-primary underline">Open QR</a>
+                      <div className="text-xs text-muted-foreground">Share this QR with distributors/consumers to view batch details.</div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
