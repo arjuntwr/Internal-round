@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import ProduceCard from "@/components/ProduceCard";
-import { Calendar, Plus, Wheat, Loader2 } from "lucide-react";
+import { Calendar, Plus, Wheat, Loader2, Wallet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { addProduce } from "@/lib/api";
+import { addProduce, listBatches } from "@/lib/api";
+import { connectWallet, switchToLocalhost, requestFaucet } from "@/lib/wallet";
 
 const FarmerDashboard = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -15,12 +16,9 @@ const FarmerDashboard = () => {
     quantity: "",
     harvestDate: "",
   });
-  const [recentBatches, setRecentBatches] = useState([
-    { batchId: "001", cropName: "Wheat", quantity: "100kg", harvestDate: "Sept 10, 2025", status: "available" },
-    { batchId: "002", cropName: "Corn", quantity: "150kg", harvestDate: "Sept 12, 2025", status: "available" },
-    { batchId: "003", cropName: "Rice", quantity: "200kg", harvestDate: "Sept 15, 2025", status: "transferred" },
-  ]);
+  const [recentBatches, setRecentBatches] = useState<any[]>([]);
   const [lastQrUrl, setLastQrUrl] = useState<string | null>(null);
+  const [wallet, setWallet] = useState<string | null>(null);
   
   const { toast } = useToast();
 
@@ -67,7 +65,7 @@ const FarmerDashboard = () => {
       
       setRecentBatches(prev => [newBatch, ...prev]);
       setFormData({ cropName: "", quantity: "", harvestDate: "" });
-      setLastQrUrl(result.qrCodeUrl || null);
+      setLastQrUrl((result as any).qrCodeUrl || null);
       
       toast({
         title: "Success! 🌾",
@@ -86,6 +84,23 @@ const FarmerDashboard = () => {
     }
   };
 
+  // Load real batches
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await listBatches();
+        const mapped = (res.items || []).map((b) => ({
+          batchId: String(b.batchId).padStart(3, "0"),
+          cropName: b.cropName,
+          quantity: String(b.quantity) + "kg",
+          harvestDate: new Date(b.harvestDate).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
+          status: "available",
+        }));
+        setRecentBatches(mapped);
+      } catch {}
+    })();
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 space-section">
@@ -98,7 +113,7 @@ const FarmerDashboard = () => {
           </p>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 md:gap-8 xl:grid-cols-2">
           {/* Add Produce Form */}
           <Card className="supply-chain-card animate-slide-in-right">
             <CardHeader>
@@ -114,7 +129,7 @@ const FarmerDashboard = () => {
                   <Input
                     id="cropName"
                     name="cropName"
-                    placeholder="e.g., Wheat, Corn, Rice"
+                    placeholder="e.g., Wheat, Corn, Rice (choose a clear, human-readable name)"
                     value={formData.cropName}
                     onChange={handleInputChange}
                     disabled={isLoading}
@@ -127,7 +142,7 @@ const FarmerDashboard = () => {
                     id="quantity"
                     name="quantity"
                     type="number"
-                    placeholder="e.g., 100"
+                    placeholder="e.g., 100 (enter numeric quantity in kilograms)"
                     value={formData.quantity}
                     onChange={handleInputChange}
                     disabled={isLoading}
@@ -166,11 +181,30 @@ const FarmerDashboard = () => {
                 </Button>
               </form>
 
+              {/* Wallet actions */}
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <Button variant="outline" onClick={async () => {
+                  const acc = await connectWallet();
+                  setWallet(acc);
+                }}>
+                  <Wallet className="h-4 w-4 mr-2" /> Connect Wallet
+                </Button>
+                <Button variant="outline" onClick={async () => { await switchToLocalhost(); }}>
+                  Add/Switch Hardhat
+                </Button>
+                <Button variant="outline" onClick={async () => {
+                  if (!wallet) return;
+                  await requestFaucet(wallet);
+                }} disabled={!wallet}>
+                  Get Test ETH
+                </Button>
+              </div>
+
               {lastQrUrl && (
                 <div className="mt-6 p-4 border border-border rounded-lg bg-muted/50 space-y-3">
                   <div className="text-sm font-medium">Batch QR Code</div>
                   <div className="flex items-center gap-4">
-                    <img src={lastQrUrl} alt="Batch QR" className="h-32 w-32" />
+                    <img src={lastQrUrl} alt="Batch QR" className="h-24 w-24 sm:h-32 sm:w-32 md:h-40 md:w-40" />
                     <div className="space-y-2">
                       <a href={lastQrUrl} target="_blank" rel="noreferrer" className="text-primary underline">Open QR</a>
                       <div className="text-xs text-muted-foreground">Share this QR with distributors/consumers to view batch details.</div>

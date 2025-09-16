@@ -137,6 +137,44 @@ function audit(event, data) {
   } catch {}
 }
 
+// ---- Lightweight JSON persistence for batches
+const dataDir = path.join(process.cwd(), "data");
+const batchesPath = path.join(dataDir, "batches.json");
+function ensureDataStore() {
+  try { if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir); } catch {}
+  try { if (!fs.existsSync(batchesPath)) fs.writeFileSync(batchesPath, JSON.stringify({ batches: {} }, null, 2)); } catch {}
+}
+function readBatches() {
+  try {
+    ensureDataStore();
+    const raw = fs.readFileSync(batchesPath, "utf-8");
+    const parsed = JSON.parse(raw);
+    return (parsed && typeof parsed === "object" && parsed.batches) ? parsed : { batches: {} };
+  } catch {
+    return { batches: {} };
+  }
+}
+function writeBatch(batchId, record) {
+  try {
+    const db = readBatches();
+    db.batches[String(batchId)] = { ...record, batchId };
+    fs.writeFileSync(batchesPath, JSON.stringify(db, null, 2));
+  } catch {}
+}
+
+// ---- List Batches (for dashboards)
+app.get("/batches", async (_req, res) => {
+  try {
+    const db = readBatches();
+    const items = Object.values(db.batches)
+      .sort((a, b) => (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    return safeJson(res, { items });
+  } catch (e) {
+    const mapped = mapErrorToHttp(e);
+    return res.status(mapped.code).json(mapped.body);
+  }
+});
+
 // ---- Health endpoint
 app.get("/health", async (_req, res) => {
   try {
@@ -203,6 +241,14 @@ app.post("/produce", requireApiKey, writeLimiter, async (req, res) => {
       qrCodeUrl: `${req.protocol}://${req.get("host")}/qrcode/${Number(nextId) - 1}`,
     };
     audit("produce.add", { from: account.address, ...payload });
+    // Persist to lightweight store for quick lookups/UI demos
+    writeBatch(payload.batchId, {
+      cropName: cropName.trim(),
+      quantity: qtyNum,
+      harvestDate: harvestDate.trim(),
+      farmer: account.address,
+      createdAt: new Date().toISOString(),
+    });
     return safeJson(res, payload);
   } catch (e) {
     console.error("/produce error:", e);
@@ -222,6 +268,29 @@ app.get("/qrcode/:id", async (req, res) => {
     const svg = await QRCode.toString(url, { type: "svg", margin: 1, width: 256 });
     res.setHeader("Content-Type", "image/svg+xml");
     return res.send(svg);
+  } catch (e) {
+    const mapped = mapErrorToHttp(e);
+    return res.status(mapped.code).json(mapped.body);
+  }
+});
+
+// ---- Faucet endpoint (test ETH)
+app.post("/faucet", requireApiKey, writeLimiter, async (req, res) => {
+  try {
+    if (!/^application\/json/i.test(req.headers["content-type"] || "")) {
+      return res.status(415).json({ error: "Content-Type must be application/json" });
+    }
+    const { to, amount } = req.body ?? {};
+    if (!isAddress(to)) {
+      return res.status(400).json({ error: `Invalid address: ${to}` });
+    }
+    const amountEth = typeof amount === "string" ? Number(amount) : amount;
+    const value = BigInt(Math.floor((Number.isFinite(amountEth) ? amountEth : 1) * 1e18));
+    const tx = await walletClient.sendTransaction({ to, value });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
+    const payload = { success: true, transactionHash: tx, blockNumber: Number(receipt.blockNumber) };
+    audit("wallet.faucet", { to, amount: amountEth ?? 1, ...payload });
+    return safeJson(res, payload);
   } catch (e) {
     const mapped = mapErrorToHttp(e);
     return res.status(mapped.code).json(mapped.body);

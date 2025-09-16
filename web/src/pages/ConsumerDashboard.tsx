@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import SupplyChainTimeline from "@/components/SupplyChainTimeline";
-import { Search, ShoppingCart, AlertCircle } from "lucide-react";
+import { Search, ShoppingCart, AlertCircle, QrCode, Link as LinkIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getProduce } from "@/lib/api";
 
@@ -12,6 +12,9 @@ const ConsumerDashboard = () => {
   const [batchId, setBatchId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [timelineData, setTimelineData] = useState<any[]>([]);
+  const [notFound, setNotFound] = useState<string | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [qrUrl, setQrUrl] = useState("");
   const [searched, setSearched] = useState(false);
   
   const { toast } = useToast();
@@ -70,8 +73,8 @@ const ConsumerDashboard = () => {
     ],
   };
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearch = async (e: React.FormEvent | null) => {
+    if (e && typeof e.preventDefault === "function") e.preventDefault();
     
     if (!batchId.trim()) {
       toast({
@@ -84,6 +87,7 @@ const ConsumerDashboard = () => {
 
     setIsLoading(true);
     setSearched(true);
+    setNotFound(null);
 
     // Integrate with blockchain backend via API client
     try {
@@ -92,6 +96,16 @@ const ConsumerDashboard = () => {
         throw new Error("Invalid batch ID");
       }
       const result = await getProduce(idNum);
+      if ((result as any)?.error && /not found/i.test((result as any).error)) {
+        setTimelineData([]);
+        setNotFound(`Batch #${batchId} was not found. It may not be registered yet.`);
+        toast({
+          title: "Batch Not Found",
+          description: `No data for Batch #${batchId}. Ask the farmer to register it first.`,
+          variant: "destructive",
+        });
+        return;
+      }
       
       // Transform backend data to timeline format
       const timelineData = [
@@ -111,12 +125,13 @@ const ConsumerDashboard = () => {
             month: "short", 
             day: "numeric" 
           }),
-          price: `$${transfer.price}`,
+          price: `₹${transfer.price}`,
           location: "Supply Chain",
         }))
       ];
       
       setTimelineData(timelineData);
+      setNotFound(null);
       toast({
         title: "Batch Found! 🔍",
         description: `Successfully retrieved supply chain history for Batch #${batchId}.`,
@@ -130,6 +145,7 @@ const ConsumerDashboard = () => {
         variant: "destructive",
       });
       setTimelineData([]);
+      setNotFound(`Could not find Batch #${batchId}. Ensure the ID is correct (e.g., 0, 1, 2).`);
     } finally {
       setIsLoading(false);
     }
@@ -142,10 +158,85 @@ const ConsumerDashboard = () => {
     if (id) {
       setBatchId(id);
       // trigger search without user interaction
-      handleSearch({ preventDefault: () => {} } as any);
+      handleSearch(null as any);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-refresh polling
+  useEffect(() => {
+    if (!autoRefresh || !batchId) return;
+    const interval = setInterval(() => {
+      handleSearch(null as any);
+    }, 10000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRefresh, batchId]);
+
+  // Parse QR URL to extract batchId
+  const parseQrUrl = () => {
+    try {
+      const url = new URL(qrUrl.trim());
+      const id = url.searchParams.get("batchId");
+      if (id) {
+        setBatchId(id);
+        handleSearch(null as any);
+      }
+    } catch {}
+  };
+
+  // Scan QR using BarcodeDetector if available
+  const scanQr = async () => {
+    try {
+      // @ts-ignore
+      const Supported = (window as any).BarcodeDetector !== undefined;
+      if (!Supported) {
+        alert("QR scanning not supported in this browser. Paste the QR link instead.");
+        return;
+      }
+      // @ts-ignore
+      const detector = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
+      // Request camera stream
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      const video = document.createElement("video");
+      video.srcObject = stream as any;
+      await video.play();
+      // Capture a frame after a short delay
+      await new Promise(r => setTimeout(r, 800));
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const bitmap = await createImageBitmap(canvas);
+      // @ts-ignore
+      const codes = await detector.detect(bitmap);
+      stream.getTracks().forEach(t => t.stop());
+      if (codes && codes[0] && codes[0].rawValue) {
+        const value = codes[0].rawValue as string;
+        setQrUrl(value);
+        try {
+          const url = new URL(value);
+          const id = url.searchParams.get("batchId");
+          if (id) {
+            setBatchId(id);
+            handleSearch(null as any);
+          }
+        } catch {
+          // If it's just the ID
+          if (/^\d+$/.test(value)) {
+            setBatchId(value);
+            handleSearch(null as any);
+          }
+        }
+      } else {
+        alert("No QR code detected. Try again.");
+      }
+    } catch (e) {
+      alert("Failed to access camera or detect QR. Paste the QR link instead.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -159,7 +250,7 @@ const ConsumerDashboard = () => {
           </p>
         </div>
 
-        <div className="grid gap-8">
+        <div className="grid grid-cols-1 gap-6 md:gap-8">
           {/* Search Form */}
           <Card className="supply-chain-card animate-slide-in-right">
             <CardHeader>
@@ -169,7 +260,7 @@ const ConsumerDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSearch} className="space-content">
+              <form onSubmit={handleSearch as any} className="space-content">
                 <div className="space-y-2">
                   <Label htmlFor="batchId">Batch ID</Label>
                   <Input
@@ -200,6 +291,24 @@ const ConsumerDashboard = () => {
                     </>
                   )}
                 </Button>
+                <div className="grid sm:grid-cols-2 gap-3 mt-3">
+                  <Button type="button" variant="outline" onClick={scanQr}>
+                    <QrCode className="h-4 w-4 mr-2" /> Scan QR
+                  </Button>
+                  <div className="flex items-center gap-2">
+                    <LinkIcon className="h-4 w-4" />
+                    <Input
+                      placeholder="Paste QR link (e.g., http://.../consumer?batchId=0)"
+                      value={qrUrl}
+                      onChange={(e) => setQrUrl(e.target.value)}
+                      onBlur={parseQrUrl}
+                    />
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center gap-3">
+                  <input id="autorefresh" type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
+                  <Label htmlFor="autorefresh">Auto refresh every 10s</Label>
+                </div>
               </form>
 
               {/* Demo Instructions */}
@@ -218,7 +327,23 @@ const ConsumerDashboard = () => {
           </Card>
 
           {/* Timeline Results */}
-          {searched && (
+          {searched && notFound && (
+            <div className="animate-fade-in-up">
+              <Card className="border-red-500/30">
+                <CardHeader>
+                  <CardTitle className="text-red-600 flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5" /> Batch Not Found
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">{notFound}</p>
+                  <p className="text-sm text-muted-foreground mt-2">Tip: Batch IDs are numeric (e.g., 0, 1, 2). Create a batch from the Farmer Dashboard, then try again.</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {searched && !notFound && (
             <div className="animate-fade-in-up">
               <SupplyChainTimeline 
                 batchId={batchId}

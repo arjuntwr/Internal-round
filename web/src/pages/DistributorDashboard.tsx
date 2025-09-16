@@ -23,12 +23,16 @@ const DistributorDashboard = () => {
     price: "",
   });
   const [recentTransfers, setRecentTransfers] = useState<Transfer[]>([
-    { id: "1", batchId: "001", recipient: "Store A", price: "$50", date: "Sept 11, 2025" },
-    { id: "2", batchId: "002", recipient: "Store B", price: "$75", date: "Sept 13, 2025" },
-    { id: "3", batchId: "003", recipient: "Store C", price: "$100", date: "Sept 16, 2025" },
+    { id: "1", batchId: "001", recipient: "Store A", price: "₹50", date: "11 Sept 2025" },
+    { id: "2", batchId: "002", recipient: "Store B", price: "₹75", date: "13 Sept 2025" },
+    { id: "3", batchId: "003", recipient: "Store C", price: "₹100", date: "16 Sept 2025" },
   ]);
   
   const { toast } = useToast();
+  const addressBook = [
+    { label: "Distributor (Acct 2)", address: "0x2ACfBaC0C9AE7b16DB3274785d265CFe440773de" },
+    { label: "Farmer (Acct 1)", address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8" },
+  ];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -115,7 +119,7 @@ const DistributorDashboard = () => {
           </p>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 md:gap-8 xl:grid-cols-2">
           {/* Transfer Ownership Form */}
           <Card className="supply-chain-card animate-slide-in-right">
             <CardHeader>
@@ -127,11 +131,22 @@ const DistributorDashboard = () => {
             <CardContent>
               <form onSubmit={handleSubmit} className="space-content">
                 <div className="space-y-2">
+                  <Label>Quick Select Recipient</Label>
+                  <div className="flex gap-2 flex-wrap">
+                    {addressBook.map((entry) => (
+                      <Button key={entry.address} type="button" variant="outline" onClick={() => setFormData(prev => ({ ...prev, recipient: entry.address }))}>
+                        {entry.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div className="h-px bg-border my-3" />
+                <div className="space-y-2">
                   <Label htmlFor="batchId">Batch ID</Label>
                   <Input
                     id="batchId"
                     name="batchId"
-                    placeholder="e.g., 001"
+                    placeholder="e.g., 0, 1, 2 (numeric on-chain batch ID)"
                     value={formData.batchId}
                     onChange={handleInputChange}
                     disabled={isLoading}
@@ -143,7 +158,7 @@ const DistributorDashboard = () => {
                   <Input
                     id="recipient"
                     name="recipient"
-                    placeholder="e.g., Store Name or Address"
+                    placeholder="e.g., 0x7099... (Ethereum address of recipient)"
                     value={formData.recipient}
                     onChange={handleInputChange}
                     disabled={isLoading}
@@ -151,11 +166,11 @@ const DistributorDashboard = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="price">Transfer Price</Label>
+                  <Label htmlFor="price">Price (₹)</Label>
                   <Input
                     id="price"
                     name="price"
-                    placeholder="e.g., $100"
+                    placeholder="e.g., 100 (numeric price; ₹ symbol optional)"
                     value={formData.price}
                     onChange={handleInputChange}
                     disabled={isLoading}

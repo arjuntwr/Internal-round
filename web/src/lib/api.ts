@@ -26,10 +26,13 @@ export async function health(): Promise<{ ok?: boolean; chainId?: number; contra
 	}
 }
 
-export async function addProduce(input: { cropName: string; quantity: number; harvestDate: string }): Promise<{ success: boolean; batchId: number; transactionHash: string; blockNumber: number | null }>{
+export async function addProduce(input: { cropName: string; quantity: number; harvestDate: string }): Promise<{ success: boolean; batchId: number; transactionHash: string; blockNumber: number | null; qrCodeUrl?: string }>{
 	const res = await fetch(`${API_BASE}/produce`, {
 		method: "POST",
-		headers: { "Content-Type": "application/json" },
+		headers: { 
+			"Content-Type": "application/json",
+			"x-api-key": "dev-api-key"
+		},
 		body: JSON.stringify(input),
 	});
 	return handleJson(res);
@@ -38,7 +41,10 @@ export async function addProduce(input: { cropName: string; quantity: number; ha
 export async function transferOwnership(input: { batchId: number; recipient: string; price: number }): Promise<{ success: boolean; transactionHash: string; blockNumber: number | null }>{
 	const res = await fetch(`${API_BASE}/transfer`, {
 		method: "POST",
-		headers: { "Content-Type": "application/json" },
+		headers: { 
+			"Content-Type": "application/json",
+			"x-api-key": "dev-api-key"
+		},
 		body: JSON.stringify(input),
 	});
 	return handleJson(res);
@@ -46,5 +52,10 @@ export async function transferOwnership(input: { batchId: number; recipient: str
 
 export async function getProduce(batchId: number): Promise<{ cropName: string; quantity: number; harvestDate: string; farmer: string; history: Array<{ from: string; to: string; price: number; txHash: string }> }>{
 	const res = await fetch(`${API_BASE}/getProduce/${batchId}`);
+	return handleJson(res);
+}
+
+export async function listBatches(): Promise<{ items: Array<{ batchId: number; cropName: string; quantity: number; harvestDate: string; farmer: string; createdAt: string }> }>{
+	const res = await fetch(`${API_BASE}/batches`);
 	return handleJson(res);
 }
