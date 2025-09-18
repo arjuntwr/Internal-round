@@ -1,0 +1,29 @@
+{
+  "name": "SIH",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev:node": "npx hardhat node",
+    "dev:deploy": "npx hardhat ignition deploy ./ignition/modules/SupplyChain.ts --network localhost",
+    "dev:api": "node server.js",
+    "setup-test-data": "node scripts/setup-test-data.js",
+    "start": "node server.js"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ignition": "^3.0.3",
+    "@nomicfoundation/hardhat-toolbox-viem": "^5.0.0",
+    "@types/node": "^22.18.1",
+    "forge-std": "github:foundry-rs/forge-std#v1.9.4",
+    "hardhat": "^3.0.6",
+    "typescript": "~5.8.0",
+    "viem": "^2.37.5"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "qrcode": "^1.5.4"
+  }
+}

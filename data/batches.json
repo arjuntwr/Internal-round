@@ -1,0 +1,12 @@
+{
+  "batches": {
+    "0": {
+      "cropName": "wheat",
+      "quantity": 100,
+      "harvestDate": "2025-09-19",
+      "farmer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "createdAt": "2025-09-18T07:49:44.594Z",
+      "batchId": 0
+    }
+  }
+}
