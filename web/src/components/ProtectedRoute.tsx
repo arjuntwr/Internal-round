@@ -17,7 +17,8 @@ export const ProtectedRoute = ({ allowedRoles, requireVerified, children }: Prot
   }
 
   // Check if user has required role
-  if (allowedRoles && !allowedRoles.includes(user.role as any)) {
+  // Admins can access all protected routes
+  if (allowedRoles && user.role !== 'admin' && !allowedRoles.includes(user.role as any)) {
     // Redirect to unauthorized page or home
     return <Navigate to="/unauthorized" state={{ from: location }} replace />;
   }

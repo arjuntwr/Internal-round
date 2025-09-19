@@ -23,6 +23,7 @@ const FarmerDashboard = () => {
     cropName: "",
     quantity: "",
     harvestDate: "",
+    location: "",
   });
   const [recentBatches, setRecentBatches] = useState<any[]>([]);
   const [lastQrUrl, setLastQrUrl] = useState<string | null>(null);
@@ -65,6 +66,8 @@ const FarmerDashboard = () => {
         cropName: formData.cropName,
         quantity: qty,
         harvestDate: formData.harvestDate,
+        // Extra metadata (off-chain)
+        location: formData.location,
       });
 
       const newBatch = {
@@ -76,7 +79,7 @@ const FarmerDashboard = () => {
       };
       
       setRecentBatches(prev => [newBatch, ...prev]);
-      setFormData({ cropName: "", quantity: "", harvestDate: "" });
+      setFormData({ cropName: "", quantity: "", harvestDate: "", location: "" });
       setLastQrUrl((result as any).qrCodeUrl || null);
       
       toast({
@@ -198,6 +201,17 @@ const FarmerDashboard = () => {
                     name="harvestDate"
                     type="date"
                     value={formData.harvestDate}
+                    onChange={handleInputChange}
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="location">Location</Label>
+                  <Input
+                    id="location"
+                    name="location"
+                    placeholder="e.g., Nashik, Maharashtra, IN"
+                    value={formData.location}
                     onChange={handleInputChange}
                     disabled={isLoading}
                   />

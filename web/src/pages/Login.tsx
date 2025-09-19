@@ -47,6 +47,16 @@ const Login = () => {
     }
   };
 
+  const handleAdminLogin = async () => {
+    try {
+      // Demo admin seeded in backend (override via env: ADMIN_EMAIL / ADMIN_PASSWORD)
+      await login('admin@example.com', 'admin123');
+      navigate('/admin', { replace: true });
+    } catch (err) {
+      console.error('Admin quick login error:', err);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
@@ -109,6 +119,9 @@ const Login = () => {
           </Tabs>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
+          <Button type="button" variant="outline" onClick={handleAdminLogin} disabled={isLoading} className="w-full">
+            Login as Admin (demo)
+          </Button>
           <div className="text-sm text-center">
             Don't have an account?{' '}
             <Link 

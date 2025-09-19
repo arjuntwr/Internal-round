@@ -60,15 +60,16 @@ async function handleJson<T>(res: Response): Promise<T> {
   try {
     data = text ? JSON.parse(text) : {};
   } catch {
-    throw { error: 'Invalid response from server', statusCode: res.status };
+    const err = new Error('Invalid response from server') as any;
+    err.statusCode = res.status;
+    throw err;
   }
   
   if (!res.ok) {
-    const error = {
-      error: data?.error || data?.message || `HTTP ${res.status}`,
-      details: data,
-      statusCode: res.status,
-    } as ApiError;
+    const msg = data?.error || data?.message || `HTTP ${res.status}`;
+    const error: any = new Error(msg);
+    error.details = data;
+    error.statusCode = res.status;
     throw error;
   }
   
@@ -374,7 +375,7 @@ export async function health(): Promise<{ ok?: boolean; chainId?: number; contra
 	}
 }
 
-export async function addProduce(input: { cropName: string; quantity: number; harvestDate: string }): Promise<{ success: boolean; batchId: number; transactionHash: string; blockNumber: number | null; qrCodeUrl?: string }>{
+export async function addProduce(input: { cropName: string; quantity: number; harvestDate: string; location?: string }): Promise<{ success: boolean; batchId: number; transactionHash: string; blockNumber: number | null; qrCodeUrl?: string }>{
 	const res = await fetch(`${API_BASE}/produce`, {
 		method: "POST",
 		headers: { 
@@ -398,12 +399,27 @@ export async function transferOwnership(input: { batchId: number; recipient: str
 	return handleJson(res);
 }
 
-export async function getProduce(batchId: number): Promise<{ cropName: string; quantity: number; harvestDate: string; farmer: string; history: Array<{ from: string; to: string; price: number; txHash: string }> }>{
-	const res = await fetch(`${API_BASE}/getProduce/${batchId}`);
+export async function getProduce(batchId: number): Promise<{ 
+  cropName: string; 
+  quantity: number; 
+  harvestDate: string; 
+  farmer: string; 
+  location?: string | null;
+  history: Array<{ from: string; to: string; price: number | null; txHash: string; priceHidden?: boolean; blockTimestamp?: number | null }>;
+  priceVisibility?: 'public' | 'private';
+  pricesHidden?: boolean;
+  lastTransferTo?: string | null;
+  lastTransferDateISO?: string | null;
+} >{
+	const res = await fetch(`${API_BASE}/getProduce/${batchId}`, { 
+		cache: 'no-store', 
+		credentials: 'include', 
+		headers: defaultHeaders(),
+	});
 	return handleJson(res);
 }
 
 export async function listBatches(): Promise<{ items: Array<{ batchId: number; cropName: string; quantity: number; harvestDate: string; farmer: string; createdAt: string }> }>{
-	const res = await fetch(`${API_BASE}/batches`);
+	const res = await fetch(`${API_BASE}/batches`, { cache: 'no-store', credentials: 'include', headers: defaultHeaders() });
 	return handleJson(res);
 }

@@ -21,6 +21,11 @@ const ConsumerDashboard = () => {
   const [searched, setSearched] = useState(false);
   const [produceData, setProduceData] = useState<any>(null);
   const [pricesHidden, setPricesHidden] = useState(false);
+  // Known address labels (demo accounts)
+  const addressLabels: Record<string, string> = {
+    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8": "Farmer (Acct 1)",
+    "0x2ACfBaC0C9AE7b16DB3274785d265CFe440773de": "Distributor (Acct 2)",
+  };
   
   const { toast } = useToast();
 
@@ -127,20 +132,31 @@ const ConsumerDashboard = () => {
         }
       };
 
+      const formatPriceRange = (p: number | null | undefined) => {
+        if (p == null || !Number.isFinite(p)) return "Price Hidden";
+        // Show ±10% range
+        const min = Math.max(0, p * 0.9);
+        const max = p * 1.1;
+        const fmt = (n: number) => `₹${Math.round(n)}`;
+        return `${fmt(min)} - ${fmt(max)}`;
+      };
+
+      const labelFor = (addr: string) => addressLabels[addr] || addr;
+
       const timelineData = [
         {
           id: "1",
           type: "farm" as const,
-          name: result.farmer || "Unknown Farm",
+          name: labelFor(result.farmer || "Unknown Farm"),
           date: result.harvestDate || "Harvest date unknown",
-          location: "Farm Location",
+          location: result.location || "Farm Location",
         },
         ...result.history.map((transfer: any, index: number) => ({
           id: String(index + 2),
           type: index === result.history.length - 1 ? "consumer" as const : "distributor" as const,
-          name: transfer.to,
+          name: labelFor(transfer.to),
           date: formatDate(transfer.blockTimestamp),
-          price: transfer.priceHidden ? "Price Hidden" : (transfer.price ? `₹${transfer.price}` : "Price Hidden"),
+          price: transfer.priceHidden ? "Price Hidden" : formatPriceRange(transfer.price),
           priceHidden: transfer.priceHidden,
           location: "Supply Chain",
         }))

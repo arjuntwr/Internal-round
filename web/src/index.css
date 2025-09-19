@@ -133,7 +133,7 @@
 @layer components {
   /* Supply Chain Specific Components */
   .supply-chain-card {
-    @apply bg-card border border-border rounded-lg p-6 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] transition-[var(--transition-smooth)];
+    @apply bg-card border border-border rounded-lg p-7 md:p-9 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] transition-[var(--transition-smooth)];
   }
 
   .supply-chain-card:hover {
@@ -230,10 +230,10 @@
 
   /* Spacing Utilities */
   .space-section {
-    @apply space-y-8 md:space-y-12;
+    @apply space-y-10 md:space-y-16;
   }
 
   .space-content {
-    @apply space-y-4 md:space-y-6;
+    @apply space-y-6 md:space-y-8;
   }
 }

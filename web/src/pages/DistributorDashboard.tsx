@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowRightLeft, History, Loader2, Truck, Search, ShoppingCart } from "lucide-react";
 import ProfileSummary from "@/components/ProfileSummary";
 import { useToast } from "@/hooks/use-toast";
+import PriceRequestButton from "@/components/PriceRequestButton";
 import { transferOwnership, getProduce } from "@/lib/api";
 
 interface Transfer {
@@ -37,6 +38,8 @@ const DistributorDashboard = () => {
     { label: "Distributor (Acct 2)", address: "0x2ACfBaC0C9AE7b16DB3274785d265CFe440773de" },
     { label: "Farmer (Acct 1)", address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8" },
   ];
+  const addressLabels: Record<string, string> = Object.fromEntries(addressBook.map(e => [e.address, e.label]));
+  const labelFor = (addr: string) => addressLabels[addr] || addr;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -136,7 +139,7 @@ const DistributorDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 space-section">
+      <div className="container mx-auto px-4 py-10 space-section">
         <div className="animate-fade-in-up">
           <h1 className="text-display flex items-center gap-3 mb-2">
             🚚 Distributor Dashboard
@@ -145,9 +148,21 @@ const DistributorDashboard = () => {
             Transfer produce ownership through the supply chain with blockchain verification.
           </p>
           <ProfileSummary title="Your Profile" />
+          {/* Quick Trace Bar (top) */}
+          <div className="w-full border border-border rounded-lg p-5 mb-10 bg-muted/40">
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+              <div className="flex-1">
+                <Label htmlFor="topTraceId">Quick Trace Batch ID</Label>
+                <Input id="topTraceId" placeholder="e.g., 0, 1, 2" value={traceId} onChange={(e) => setTraceId(e.target.value)} />
+              </div>
+              <Button onClick={viewTrace} disabled={traceLoading} variant="outline" className="sm:w-40">
+                {traceLoading ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Loading...</>) : (<><Search className="h-4 w-4 mr-2" /> Trace</>)}
+              </Button>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:gap-8 xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-8 md:gap-10 xl:grid-cols-2">
           {/* Transfer Ownership Form */}
           <Card className="supply-chain-card animate-slide-in-right">
             <CardHeader>
@@ -157,7 +172,7 @@ const DistributorDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-content">
+              <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">
                   <Label>Quick Select Recipient</Label>
                   <div className="flex gap-2 flex-wrap">
@@ -168,7 +183,7 @@ const DistributorDashboard = () => {
                     ))}
                   </div>
                 </div>
-                <div className="h-px bg-border my-3" />
+                <div className="h-px bg-border" />
                 <div className="space-y-2">
                   <Label htmlFor="batchId">Batch ID</Label>
                   <Input
@@ -236,7 +251,7 @@ const DistributorDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-content">
+              <div className="space-y-4">
                 {recentTransfers.length > 0 ? (
                   recentTransfers.map((transfer) => (
                     <div
@@ -274,7 +289,7 @@ const DistributorDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-content">
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="traceId">Batch ID</Label>
                   <Input id="traceId" placeholder="e.g., 0, 1, 2" value={traceId} onChange={(e) => setTraceId(e.target.value)} />
@@ -284,19 +299,65 @@ const DistributorDashboard = () => {
                 </Button>
 
                 {traceResult && (
-                  <div className="mt-4 p-4 border border-border rounded-lg bg-muted/50 space-y-2">
+                  <div className="mt-4 p-5 border border-border rounded-lg bg-muted/50 space-y-3">
                     <div className="text-sm">Crop: <span className="font-medium">{traceResult.cropName}</span></div>
                     <div className="text-sm">Harvest: <span className="font-medium">{traceResult.harvestDate || 'Unknown'}</span></div>
-                    <div className="text-sm">Last Transfer To: <span className="font-medium">{traceResult.lastTransferTo || 'No transfers yet'}</span></div>
+                    <div className="text-sm">Last Transfer To: <span className="font-medium">{labelFor(traceResult.lastTransferTo || 'No transfers yet')}</span></div>
                     <div className="text-sm flex items-center gap-2">
                       <ShoppingCart className="h-4 w-4" />
                       Sold/Arrived on: <span className="font-medium">{traceResult.lastTransferDateISO ? new Date(traceResult.lastTransferDateISO).toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}</span>
                     </div>
+                    {traceResult.pricesHidden && traceId && (
+                      <div className="pt-2 flex items-center justify-between gap-2">
+                        <div className="text-xs text-muted-foreground">Price is protected. Request access from the farmer.</div>
+                        <PriceRequestButton 
+                          batchId={Number(traceId)} 
+                          onRequestSent={() => toast({ title: 'Request Sent! 📤', description: 'The farmer will be notified of your request.' })}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             </CardContent>
           </Card>
+
+          {/* Previous Transactions from trace history */}
+          {traceResult?.history?.length > 0 && (
+            <Card className="supply-chain-card animate-slide-in-right" style={{ animationDelay: "0.25s" }}>
+              <CardHeader>
+                <CardTitle className="text-section flex items-center gap-2">
+                  <History className="h-6 w-6 text-secondary" />
+                  Previous Transactions
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {traceResult.history.map((h: any, idx: number) => (
+                    <div key={`${h.txHash}-${idx}`} className="p-4 border border-border rounded-lg bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm">
+                            From <span className="font-medium">{labelFor(h.from)}</span> → To <span className="font-medium">{labelFor(h.to)}</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {h.blockTimestamp ? new Date(h.blockTimestamp * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Unknown date'}
+                          </div>
+                        </div>
+                        <div className="text-right text-sm">
+                          {h.priceHidden ? (
+                            <span className="text-muted-foreground">Price Hidden</span>
+                          ) : (
+                            <span className="font-medium">₹{h.price}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

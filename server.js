@@ -57,6 +57,7 @@ const resetTokens = new Map(); // token -> email
 const priceRequests = new Map(); // requestId -> { id, batchId, requesterEmail, farmerEmail, status, createdAt, respondedAt }
 const pricePermissions = new Map(); // `${batchId}_${requesterEmail}` -> { batchId, requesterEmail, farmerEmail, granted, createdAt }
 const produceSettings = new Map(); // batchId -> { priceVisibility: 'public' | 'private', farmerEmail }
+const produceMeta = new Map(); // batchId (number) -> { location?: string }
 
 // ---- Profiles & Reviews (in-memory)
 const userProfiles = new Map(); // email -> { location, experienceYears, mainCrops: string[], specialties: string[], avgDealSize?: number, bio?: string }
@@ -113,18 +114,6 @@ function parseCookies(req) {
   return obj;
 }
 
-function setCookie(res, name, value, opts = {}) {
-  const parts = [`${encodeURIComponent(name)}=${encodeURIComponent(value)}`];
-  if (opts.httpOnly !== false) parts.push('HttpOnly');
-  if (opts.sameSite) parts.push(`SameSite=${opts.sameSite}`);
-  else parts.push('SameSite=Lax');
-  if (opts.secure) parts.push('Secure');
-  const maxAge = opts.maxAge != null ? Number(opts.maxAge) : 60 * 60 * 24 * 7; // 7 days
-  parts.push(`Max-Age=${maxAge}`);
-  parts.push('Path=/');
-  res.setHeader('Set-Cookie', parts.join('; '));
-}
-
 function clearCookie(res, name) {
   res.setHeader('Set-Cookie', `${encodeURIComponent(name)}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`);
 }
@@ -144,6 +133,47 @@ function publicUser(u) {
   if (!u) return null;
   const { passwordHash, ...rest } = u;
   return rest;
+}
+
+// ---- Seed default accounts (admin)
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@example.com';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const ADMIN_NAME = process.env.ADMIN_NAME || 'System Admin';
+
+async function seedDefaultAdmin() {
+  try {
+    if (!users.has(ADMIN_EMAIL)) {
+      const now = new Date().toISOString();
+      users.set(ADMIN_EMAIL, {
+        id: (await randomToken()).slice(0, 12),
+        email: ADMIN_EMAIL,
+        name: ADMIN_NAME,
+        role: 'admin',
+        passwordHash: await sha256(ADMIN_PASSWORD),
+        emailVerified: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+      console.log(`[seed] Admin user created -> email: ${ADMIN_EMAIL} password: ${ADMIN_PASSWORD}`);
+    }
+  } catch (e) {
+    console.error('[seed] Failed to seed admin:', e);
+  }
+}
+
+// Kick off seeding immediately (ESM allows top-level await)
+await seedDefaultAdmin();
+
+function setCookie(res, name, value, opts = {}) {
+  const parts = [`${encodeURIComponent(name)}=${encodeURIComponent(value)}`];
+  if (opts.httpOnly !== false) parts.push('HttpOnly');
+  if (opts.sameSite) parts.push(`SameSite=${opts.sameSite}`);
+  else parts.push('SameSite=Lax');
+  if (opts.secure) parts.push('Secure');
+  const maxAge = opts.maxAge != null ? Number(opts.maxAge) : 60 * 60 * 24 * 7; // 7 days
+  parts.push(`Max-Age=${maxAge}`);
+  parts.push('Path=/');
+  res.setHeader('Set-Cookie', parts.join('; '));
 }
 
 // --- Auth Routes ---
@@ -454,6 +484,13 @@ app.post('/price-requests', requireAuth, async (req, res) => {
       return res.status(409).json({ error: "Price request already pending" });
     }
 
+    // Save optional metadata like location
+    if (req.body && typeof req.body.location === 'string') {
+      try {
+        produceMeta.set(Number(batchId), { location: String(req.body.location) });
+      } catch {}
+    }
+
     // Create new request
     const requestId = await randomToken();
     const newRequest = {
@@ -479,6 +516,31 @@ app.post('/price-requests', requireAuth, async (req, res) => {
     console.error('/price-requests error:', e);
     const mapped = mapErrorToHttp(e);
     return res.status(mapped.code).json(mapped.body);
+  }
+});
+
+// Update produce metadata (e.g., location) for an existing batch
+app.post('/produce/:id/meta', (req, res) => {
+  try {
+    const cookies = parseCookies(req);
+    const sid = cookies['sid'];
+    if (!sid || !sessions.has(sid)) return res.status(401).json({ error: 'Unauthorized' });
+    const email = sessions.get(sid);
+    const u = users.get(email);
+    if (!u) return res.status(401).json({ error: 'Unauthorized' });
+    if (u.role !== 'farmer') return res.status(403).json({ error: 'Only farmers can update produce metadata' });
+
+    const idNum = Number(req.params.id);
+    if (!Number.isFinite(idNum) || idNum < 0) return res.status(400).json({ error: 'Invalid batch ID' });
+    const meta = produceMeta.get(idNum) || {};
+    const { location } = req.body || {};
+    const updated = { ...meta };
+    if (typeof location === 'string') updated.location = String(location);
+    produceMeta.set(idNum, updated);
+    return safeJson(res, { success: true, batchId: idNum, meta: updated });
+  } catch (e) {
+    console.error('/produce/:id/meta error', e);
+    return res.status(500).json({ error: 'Failed to update metadata' });
   }
 });
 
@@ -817,7 +879,7 @@ app.post("/produce", requireApiKeyOrSession, writeLimiter, async (req, res) => {
     if (!/^application\/json/i.test(req.headers["content-type"] || "")) {
       return res.status(415).json({ error: "Content-Type must be application/json" });
     }
-    const { cropName, quantity, harvestDate } = req.body ?? {};
+    const { cropName, quantity, harvestDate, location } = req.body ?? {};
 
     if (typeof cropName !== "string" || cropName.trim().length === 0) {
       return res.status(400).json({ error: "Invalid cropName" });
@@ -858,8 +920,13 @@ app.post("/produce", requireApiKeyOrSession, writeLimiter, async (req, res) => {
       quantity: qtyNum,
       harvestDate: harvestDate.trim(),
       farmer: account.address,
+      location: typeof location === 'string' ? String(location) : undefined,
       createdAt: new Date().toISOString(),
     });
+    // Persist optional farm location in in-memory metadata for API responses
+    if (typeof location === 'string' && location.trim().length > 0) {
+      try { produceMeta.set(payload.batchId, { location: String(location) }); } catch {}
+    }
     return safeJson(res, payload);
   } catch (e) {
     console.error("/produce error:", e);
@@ -1077,11 +1144,13 @@ app.get("/getProduce/:id", async (req, res) => {
     }
 
     const last = history.length > 0 ? history[history.length - 1] : null;
+    const meta = produceMeta.get(Number(idNum)) || {};
     const response = {
       cropName,
       quantity: Number(quantity),
       harvestDate,
       farmer,
+      location: meta.location || null,
       history,
       priceVisibility: settings?.priceVisibility || 'public',
       pricesHidden: shouldHidePrices,
