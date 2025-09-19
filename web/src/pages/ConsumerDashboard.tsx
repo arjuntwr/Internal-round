@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -426,7 +427,26 @@ const ConsumerDashboard = () => {
           </Card>
 
           {/* Timeline Results */}
-          {searched && notFound && (
+          {isLoading && (
+            <div className="animate-fade-in-up space-y-4">
+              {[...Array(2)].map((_, i) => (
+                <div key={i} className="supply-chain-card bg-card p-5">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-6 w-48" />
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {searched && notFound && !isLoading && (
             <div className="animate-fade-in-up">
               <Card className="border-red-500/30">
                 <CardHeader>
@@ -442,7 +462,7 @@ const ConsumerDashboard = () => {
             </div>
           )}
 
-          {searched && !notFound && (
+          {searched && !notFound && !isLoading && (
             <div className="animate-fade-in-up space-y-6">
               {/* Summary row: when purchased (last transfer) */}
               {produceData?.lastTransferDateISO && (

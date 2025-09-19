@@ -39,7 +39,7 @@ const ProduceCard = ({
   };
 
   return (
-    <Card className="supply-chain-card animate-fade-in-up">
+    <Card className="supply-chain-card hover-card-pop animate-fade-in-up">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-card-title flex items-center gap-2">
@@ -74,11 +74,11 @@ const ProduceCard = ({
         
         <div className="flex gap-2 pt-4">
           {onViewDetails && (
-            <Button variant="outline" size="sm" onClick={onViewDetails} className="flex-1">
+            <Button variant="outline" size="sm" onClick={onViewDetails} className="flex-1 btn-shine">
               View Details
             </Button>
           )}
-          <Button asChild variant="outline" size="sm" className="flex-1">
+          <Button asChild variant="outline" size="sm" className="flex-1 btn-shine">
             <Link to={`/consumer?batchId=${parseInt(batchId, 10)}`}>View Trace</Link>
           </Button>
           {!DEMO_MODE && showTransferButton && onTransfer && (

@@ -10,6 +10,8 @@ const Index = () => {
       {/* Hero Section */}
       <section className="relative py-20 lg:py-32 overflow-hidden">
         <div className="absolute inset-0 hero-gradient opacity-10" />
+        <div className="white-glow-backdrop" />
+        <div className="white-vignette-edges" />
         <div className="container mx-auto px-4 relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="animate-fade-in-up">
@@ -24,13 +26,13 @@ const Index = () => {
                 distributors, and consumers through immutable tracking records.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button asChild size="xl" variant="hero">
+                <Button asChild size="xl" variant="hero" className="animate-pulse-glow">
                   <Link to="/farmer">
                     Get Started
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-                <Button asChild size="xl" variant="outline">
+                <Button asChild size="xl" variant="outline" className="btn-shine">
                   <Link to="/consumer">
                     Track Produce
                   </Link>
@@ -47,6 +49,11 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* Section Divider */}
+      <div className="section-divider" />
+
+      {/* Image showcase removed as requested */}
 
       {/* Features Section */}
       <section className="py-20 bg-muted/30">
@@ -91,7 +98,7 @@ const Index = () => {
             ].map((feature, index) => (
               <Card 
                 key={index}
-                className="supply-chain-card animate-fade-in-up text-center hover:scale-105 transition-transform"
+                className="supply-chain-card gradient-border hover-card-pop animate-fade-in-up text-center"
                 style={{ animationDelay: feature.delay }}
               >
                 <CardHeader>
@@ -103,7 +110,7 @@ const Index = () => {
                 <CardContent>
                   <p className="text-muted-foreground mb-4">{feature.description}</p>
                   {feature.link !== "/" && (
-                    <Button asChild variant="outline" size="sm">
+                    <Button asChild variant="outline" size="sm" className="btn-shine">
                       <Link to={feature.link}>
                         Try It <ArrowRight className="ml-1 h-4 w-4" />
                       </Link>
@@ -125,7 +132,7 @@ const Index = () => {
               <p className="text-muted-foreground mb-8">
                 Our platform provides unparalleled transparency, security, and trust in the food supply chain.
               </p>
-              <Button asChild variant="hero" size="lg">
+              <Button asChild variant="hero" size="lg" className="animate-pulse-glow">
                 <Link to="/farmer">Start Tracking</Link>
               </Button>
             </div>
@@ -155,7 +162,7 @@ const Index = () => {
               ].map((benefit, index) => (
                 <Card 
                   key={index}
-                  className="supply-chain-card animate-slide-in-right"
+                  className="supply-chain-card gradient-border hover-card-pop animate-slide-in-right"
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
                   <CardHeader>
@@ -183,19 +190,19 @@ const Index = () => {
               Join thousands of farmers, distributors, and retailers using blockchain for complete supply chain transparency.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button asChild size="xl" variant="hero">
+              <Button asChild size="xl" variant="hero" className="animate-pulse-glow">
                 <Link to="/farmer">
                   <Wheat className="mr-2 h-5 w-5" />
                   I'm a Farmer
                 </Link>
               </Button>
-              <Button asChild size="xl" variant="outline">
+              <Button asChild size="xl" variant="outline" className="btn-shine">
                 <Link to="/distributor">
                   <Truck className="mr-2 h-5 w-5" />
                   I'm a Distributor
                 </Link>
               </Button>
-              <Button asChild size="xl" variant="outline">
+              <Button asChild size="xl" variant="outline" className="btn-shine">
                 <Link to="/consumer">
                   <ShoppingCart className="mr-2 h-5 w-5" />
                   I'm a Consumer

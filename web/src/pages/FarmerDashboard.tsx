@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,7 @@ const FarmerDashboard = () => {
     location: "",
   });
   const [recentBatches, setRecentBatches] = useState<any[]>([]);
+  const [isFetching, setIsFetching] = useState<boolean>(true);
   const [lastQrUrl, setLastQrUrl] = useState<string | null>(null);
   const [wallet, setWallet] = useState<string | null>(null);
   const [visibilityMap, setVisibilityMap] = useState<Record<number, 'public' | 'private'>>({});
@@ -102,6 +104,7 @@ const FarmerDashboard = () => {
   // Load real batches
   useEffect(() => {
     (async () => {
+      setIsFetching(true);
       try {
         const res = await listBatches();
         // Load visibility settings in parallel
@@ -121,6 +124,9 @@ const FarmerDashboard = () => {
         }));
         setRecentBatches(mapped);
       } catch {}
+      finally {
+        setIsFetching(false);
+      }
     })();
   }, []);
 
@@ -261,7 +267,27 @@ const FarmerDashboard = () => {
             </CardHeader>
             <CardContent>
             <div className="space-content">
-              {recentBatches.length > 0 ? (
+              {isFetching ? (
+                <div className="space-y-4">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="supply-chain-card bg-card p-4">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-5 w-40" />
+                        <Skeleton className="h-6 w-16 rounded-full" />
+                      </div>
+                      <div className="mt-4 grid grid-cols-3 gap-4">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-full" />
+                      </div>
+                      <div className="mt-4 flex gap-2">
+                        <Skeleton className="h-9 w-24" />
+                        <Skeleton className="h-9 w-24" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : recentBatches.length > 0 ? (
                 recentBatches.map((batch) => (
                   <ProduceCard
                     key={batch.batchId}
