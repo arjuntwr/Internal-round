@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Wheat, Home, User, Truck, ShoppingCart, LogOut, UserCircle, LogIn } from "lucide-react";
+import { Home, User, Truck, ShoppingCart, LogOut, UserCircle, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   DropdownMenu,
@@ -29,8 +30,16 @@ const Navigation = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <Wheat className="h-8 w-8 text-primary" />
+          <Link to="/" className="flex items-center gap-2 hover:opacity-90 transition-all">
+            <img
+              src="/WhatsApp_Image_2025-09-19_at_15.59.43_3f7f1e7f-removebg-preview.png"
+              alt="Agri Tree"
+              className="h-8 w-8 object-contain logo-glow"
+              onError={(e) => {
+                const img = e.currentTarget as HTMLImageElement;
+                img.src = '/placeholder.svg';
+              }}
+            />
             <span className="text-xl font-bold text-foreground">Agri Tree</span>
           </Link>
 
@@ -45,18 +54,26 @@ const Navigation = () => {
                   key={item.to}
                   to={item.to}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                    "group relative flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                     isActive
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   )}
                 >
                   <Icon className="h-4 w-4" />
-                  {item.label}
+                  <span className="relative">
+                    {item.label}
+                    {!isActive && (
+                      <span className="absolute -bottom-1 left-0 h-0.5 w-0 bg-[hsl(var(--primary))] transition-all duration-300 group-hover:w-full" />
+                    )}
+                  </span>
                 </Link>
               );
             })}
             
+            {/* Theme toggle (desktop) */}
+            <ThemeToggle size="icon" />
+
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -86,7 +103,7 @@ const Navigation = () => {
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="gap-2"
+                className="gap-2 btn-shine"
                 onClick={() => navigate('/login')}
               >
                 <LogIn className="h-4 w-4" />

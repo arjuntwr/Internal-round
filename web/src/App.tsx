@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import Navigation from "./components/Navigation";
 import ErrorBoundary from "./components/ErrorBoundary";
+import Footer from "./components/Footer";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -86,6 +87,7 @@ const App = () => (
           <ErrorBoundary>
             <Navigation />
             <AppRoutes />
+            <Footer />
           </ErrorBoundary>
         </TooltipProvider>
       </AuthProvider>
